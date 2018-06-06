@@ -1,0 +1,124 @@
+{
+  "name": "react-webpack-kit",
+  "version": "1.0.0",
+  "description": "react webpack ",
+  "main": "index.js",
+  "repository": "https://github.com/YingQQQ/React-Webpack-Kit.git",
+  "author": "Y",
+  "license": "MIT",
+  "scripts": {
+    "start": "cross-env NODE_ENV=development node ./bin/server --hot",
+    "build": "webpack",
+    "test": "jest --coverage",
+    "test:watch": "jest --watchAll",
+    "test:clean": "rimraf ./coverage"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0-beta.47",
+    "@babel/plugin-proposal-class-properties": "^7.0.0-beta.47",
+    "@babel/plugin-syntax-dynamic-import": "^7.0.0-beta.47",
+    "@babel/plugin-transform-runtime": "^7.0.0-beta.47",
+    "@babel/preset-env": "^7.0.0-beta.47",
+    "@babel/preset-react": "^7.0.0-beta.47",
+    "@babel/register": "^7.0.0-beta.47",
+    "autoprefixer": "^8.5.0",
+    "babel-eslint": "8",
+    "babel-jest": "^23.0.1",
+    "babel-loader": "^8.0.0-beta.3",
+    "clean-webpack-plugin": "^0.1.16",
+    "cross-env": "^5.0.5",
+    "css-loader": "^0.28.5",
+    "ejs": "^2.6.1",
+    "eslint": "^4.6.1",
+    "eslint-config-airbnb": "^15.1.0",
+    "eslint-loader": "^1.9.0",
+    "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-jsx-a11y": "^5.1.1",
+    "eslint-plugin-react": "^7.3.0",
+    "file-loader": "^0.11.2",
+    "html-webpack-plugin": "^3.2.0",
+    "html-webpack-template": "^6.2.0",
+    "image-webpack-loader": "^4.2.0",
+    "jest": "^23.1.0",
+    "jest-cli": "^23.1.0",
+    "koa": "^2.5.1",
+    "koa-logger": "^3.1.0",
+    "koa-webpack": "^4.0.0",
+    "koa2-history-api-fallback": "^0.0.5",
+    "mini-css-extract-plugin": "^0.4.0",
+    "node-sass": "^4.9.0",
+    "optimize-css-assets-webpack-plugin": "^4.0.1",
+    "piping": "^1.0.0-rc.4",
+    "postcss-cssnext": "^3.0.2",
+    "postcss-import": "^10.0.0",
+    "postcss-loader": "^2.0.6",
+    "sass-loader": "^7.0.1",
+    "style-loader": "^0.18.2",
+    "sw-precache-webpack-plugin": "^0.11.5",
+    "uglifyjs-webpack-plugin": "^1.2.5",
+    "url-loader": "^0.5.9",
+    "webpack": "^4.8.3",
+    "webpack-cli": "^2.1.4",
+    "webpack-merge": "^4.1.2"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.0.0-beta.49",
+    "history": "^4.7.2",
+    "immutable": "^3.8.1",
+    "prop-types": "^15.6.0",
+    "react": "^16.3.2",
+    "react-dom": "^16.3.2",
+    "react-hot-loader": "^4.2.0",
+    "react-loadable": "^5.3.0",
+    "react-redux": "^5.0.6",
+    "react-router-dom": "^4.2.2",
+    "react-router-redux": "next",
+    "react-tap-event-plugin": "^3.0.2",
+    "redux": "^3.7.2",
+    "redux-thunk": "^2.2.0"
+  },
+  "babelConfig": {
+    "presets": [
+      "@babel/preset-env",
+      ["@babel/preset-react", { "pragma": "h" }]
+    ],
+    "plugins": [
+      [
+        "@babel/plugin-transform-runtime",
+        {
+          "helpers": false,
+          "polyfill": false,
+          "regenerator": true,
+          "moduleName": "@babel/runtime"
+        }
+      ],
+      "@babel/plugin-proposal-class-properties",
+      "@babel/plugin-syntax-dynamic-import",
+      "react-hot-loader/babel"
+    ]
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "app/**/*.{js,jsx}",
+      "!app/**/*.test.{js,jsx}",
+      "!app/index.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 98,
+        "branches": 91,
+        "functions": 98,
+        "lines": 98
+      }
+    },
+    "moduleDirectories": [
+      "node_modules",
+      "src"
+    ],
+    "moduleNameMapper": {
+      ".*\\.(css|less|styl|scss|sass)$": "<rootDir>/config/mocks/cssModule.js",
+      ".*\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$": "<rootDir>/internals/mocks/image.js"
+    },
+    "testRegex": "tests/.*\\.test\\.js$"
+  }
+}

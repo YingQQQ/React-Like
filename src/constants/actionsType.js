@@ -1,0 +1,2 @@
+export const LOCATION_CHANGE = 'LOCATION_CHANGE';
+export const NEED_GET_DATA = 'NEED_GET_DATA';
