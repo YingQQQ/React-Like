@@ -45,6 +45,7 @@ import options from './options';
  *    "Hello World!"
  *  )
  * );
+ * @returns
  *{
  *   nodeName: ƒ App(argument), 
  *   children: [
@@ -76,7 +77,7 @@ export default function h(nodeName, attributes) {
   let lastSimple;
   // i--: 先比较大小之后再--,和--i不同的是--i是先运行--再比较
   // 当参数大于2时,则是把多余的参数推入stack
-  for (i = arguments.length; i-- > 2; ) {
+  for (i = arguments.length; i-- > 2;) {
     stack.push(arguments[i]);
   }
   // 如果属性中有子组件的存在则继续推入栈(stack)
@@ -90,15 +91,16 @@ export default function h(nodeName, attributes) {
     // 获取stack的元素,例2中的['Preact!'],并判断是不是数组
     child = stack.pop();
     if (child.pop !== undefined) {
-      for (i = child.length; i--; ) {
+      for (i = child.length; i--;) {
         stack.push(child[i]);
       }
     } else {
       if (typeof child === 'boolean') {
         child = null;
       }
+      // 嵌套的组件 nodeName是func
       simple = typeof nodeName !== 'function';
-      // 如果node是不是函数, nodeName = 'div'
+      // 如果nodeName是不是函数, nodeName = 'div'
       if (simple) {
         if (child == null) {
           child = '';

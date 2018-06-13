@@ -95,7 +95,7 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
 
     return out;
   }
-  // 如果是VNode代表的是一个组件，使用组件的diff
+  // 如果是VNode代表的是一个嵌套组件，使用组件的diff
   let nodeName = vnode.nodeName;
   if (typeof nodeName === 'function') {
     return buildComponentFromVNode(dom, vnode, context, mountAll);
