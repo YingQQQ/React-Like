@@ -6,16 +6,16 @@ import diff from './vdom/diff';
  * @param {import('./dom').PreactElement} parent 父元素
  * @param {import('./dom').PreactElement} [merge] 如果提供了可选的DOM节点参数 merge 并且是 PreactElement
  * 的子节点，Preact将使用它的diffing算法来更新或者替换该元素节点。否则，Preact将把渲染的元素添加到 PreactElement 上
- * 
+ *
  * @public
  *
  * @example
  * //下面这些例子展示了如何在具有以下HTML标记的页面中执行render()
- * 
+ *
  * <div id="container">
  *  <h1>My App</h1>
  * </div>
- * 
+ *
  * @example
  * const container = document.getElementById('container')
  * render(MyComponent, container);
@@ -24,9 +24,9 @@ import diff from './vdom/diff';
  *  <h1>My App</h1>
  *  <MyComponent />
  * </div>
- * 
+ *
  * @example
- * 
+ *
  * const merge = container.querySelector('h1');
  * render(MyComponent, container, merge);
  * 对比 MyComponent 和 <h1>My App</h1> 的不同
@@ -35,7 +35,19 @@ import diff from './vdom/diff';
  * </div>
  * // babel转义
  * render(
- *  createElement('div', { id: 'foo' }, 'Hello', null, ['Preact!']),
+ *  {
+ *   nodeName: ƒ App(argument),
+ *   children: [
+ *       {
+ *           nodeName: ƒ Child(argument),
+ *           children: ["Hello World!"],
+ *           attributes: undefined,
+ *           key: undefined
+ *       }
+ *   ],
+ *   attributes: undefined,
+ *   key: undefined
+ *  }
  *  container,
  *  merger
  * )

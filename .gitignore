@@ -60,3 +60,8 @@ typings/
 # build file
 dist/
 records.json
+
+#test file
+preact.sem.js
+preact.js
+test.html
