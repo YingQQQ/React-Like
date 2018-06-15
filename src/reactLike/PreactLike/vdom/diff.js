@@ -2,14 +2,22 @@
 /* eslint-disable  no-param-reassign */
 /* eslint-disable  no-underscore-dangle */
 /* eslint-disable  no-use-before-define */
+/* eslint-disable  import/no-mutable-exports */
+/* eslint-disable  no-nested-ternary */
 import { ATTR_KEY } from '../constants';
-import { removeNode } from '../dom/index';
+import { removeNode, isNamedNode } from '../dom/index';
 import { unmountComponent, buildComponentFromVNode } from './component';
+import options from '../options';
+
+/**
+ * 组件队列,已经被挂载的组件或者等待被挂载的组件
+ */
+export const mounts = [];
 
 /**
  * 用来记录当前渲染的层数(递归的深度)，其实在代码中并没有在进入每层递归的时候都增加并且退出递归的时候减小。
  */
-let difflevel = 0;
+export let diffLevel = 0;
 /**
  * 全局变量,用于判断是不是在SVG的容器内
  */
@@ -19,6 +27,32 @@ let isSvgMode = false;
  */
 
 let hydrating = false;
+
+/**
+ * 就是将队列mounts中取出组件实例，然后如果存在生命周期函数componentDidMount，则对应执行
+ * 上面有两处调用函数flushMounts，一个是在renderComponent内部，一个是在diff函数。
+ * 那么在什么情况下触发上下两段代码呢？
+ * 首先componentRoot表示的是当前diff是不是以组件中渲染内容的形式调用
+ * (比如组件中render函数返回HTML类型的VNode)，
+ * 那么preact.render函数调用时肯定componentRoot是false，
+ * diffLevel表示渲染的层次，diffLevel回减到0说明已经要结束diff的调用，
+ * 所以在使用preact.render渲染的最后肯定会使用上面的代码去调用函数flushMounts。
+ * 但是如果其中某个已经渲染的组件通过setState或者forceUpdate的方式导致了重新渲染
+ * 并且致使子组件创建了新的实例(比如前后两次返回了不同的组件类型)
+ * 这时，就会采用第一种方式在调用flushMounts函数
+ */
+export function flushMounts() {
+  let c = mounts.pop();
+  while (c) {
+    if (options.afterMount) {
+      options.afterMount(c);
+    }
+    if (c.componentDidMount) {
+      c.componentDidMount();
+    }
+    c = mounts.pop();
+  }
+}
 
 /**
  * 回收/卸载所有的子元素
@@ -96,9 +130,23 @@ function idiff(dom, vnode, context, mountAll, componentRoot) {
     return out;
   }
   // 如果是VNode代表的是一个嵌套组件，使用组件的diff
-  let nodeName = vnode.nodeName;
-  if (typeof nodeName === 'function') {
+  let vnodeName = vnode.nodeName;
+  if (typeof vnodeName === 'function') {
     return buildComponentFromVNode(dom, vnode, context, mountAll);
+  }
+
+  // 沿着树向下时记录记录存在的SVG命名空间
+
+  isSvgMode =
+    vnodeName === 'svg'
+      ? true
+      : (vnodeName === 'foreignObject'
+        ? false
+        : isSvgMode);
+  // 如果不是一个已经存在的元素或者类型有问题，则重新创建一个
+  vnodeName = String(vnodeName);
+  if (!dom || !isNamedNode(dom, vnodeName)) {
+    out = createNode(vnodeName, isSvgMode);
   }
 }
 /**
@@ -118,8 +166,8 @@ export default function diff(
   parent,
   componentRoot
 ) {
-  if (!difflevel) {
-    difflevel++;
+  if (!diffLevel) {
+    diffLevel++;
     isSvgMode = parent != null && parent.ownerSVGElement !== undefined;
     // hydrating 指示的是被diff的现存元素是否含有属性props的缓存
     // 属性props的缓存被存在dom节点的__preactattr_属性中

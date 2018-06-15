@@ -12,11 +12,19 @@ import {
   FORCE_RENDER
 } from '../constants';
 import { removeNode } from '../dom/index';
-import { collectComponent, removeChildren } from './diff';
+import {
+  collectComponent,
+  removeChildren,
+  diff,
+  recollectNodeTree,
+  mounts,
+  diffLevel,
+  flushMounts
+} from './diff';
 import { getNodeProps } from './index';
 import { extend } from '../util';
 import { createComponent } from './component-recycler';
-
+import { enqueueRender } from '../render-queue';
 
 export function renderComponent(component, renderMode, mountAll, isChild) {
   if (component._disable) {
@@ -143,7 +151,107 @@ export function renderComponent(component, renderMode, mountAll, isChild) {
         renderComponent(inst, SYNC_RENDER, mountAll, true);
       }
       base = inst.base;
+      // 处理的是当前组件需要渲染的虚拟dom类型是非组件类型(即普通的DOM元素)
+    } else {
+      // initialBase来自于initialBase = isUpdate || nextBase，
+      // 也就是说如果当前是更新的模式，则initialBase等于isUpdate，即为上次组件渲染的内容。
+      cbase = initialBase;
+      // 如果之前的组件渲染的是函数类型的元素(即组件)，但现在却渲染的是非函数类型的，
+      // 赋值toUnmount = initialChildComponent，用来存储之后需要卸载的组件，
+      // 并且由于cbase对应的是之前的组件的dom节点，因此就无法使用了，
+      // 需要赋值cbase = null以使得重新渲染。而component._component = null
+      // 目的就是切断之前组件间的父子关系，毕竟现在返回的都不是组件。
+      toUnmount = initialChildComponent;
+      if (toUnmount) {
+        component._component = null;
+        cbase = null;
+      }
+      // 如果是同步渲染(SYNC_RENDER),则会通过调用idiff函数去渲染组件返回的虚拟dom
+      if (initialBase || renderMode === SYNC_RENDER) {
+        if (cbase) {
+          cbase._component = null;
+        }
+        // 1. cbase对应的是diff的dom参数，表示用来渲染的VNode之前的真实dom。
+        // 可以看到如果之前是组件类型，那么cbase值为undefined，我们就需要重新开始渲染。
+        // 否则我们就可以在之前的渲染基础上更新以寻求最小的更新代价。
+        // 2. rendered对应diff中的vnode参数，表示需要渲染的虚拟dom节点。
+        // 3. context对应diff中的context参数，表示组件的context属性。
+        // 4. mountAll || !isUpdate对应的是diff中的mountAll参数，
+        // 表示是否是重新渲染DOM节点而不是基于之前的DOM修改，!isUpdate表示的就是非更新状态。
+        // 5. initialBase && initialBase.parentNode对应的是diff中的parent参数，表示的是当前渲染节点的父级节点。
+        // 6. diff函数的第六个参数为componentRoot,
+        // 实参为true表示的是当前diff是以组件中render函数的渲染内容的形式调用，也可以说当前的渲染内容是属于组件类型的
+        // 变量base存储的就是本次组件渲染的真实DOM元素。
+        base = diff(
+          cbase,
+          rendered,
+          context,
+          mountAll || !isUpdate,
+          initialBase && initialBase.parentNode,
+          true
+        );
+      }
     }
+    // 如果组件前后返回的虚拟dom节点对应的真实DOM节点不相同，
+    // 或者前后返回的虚拟DOM节点对应的前后组件实例不一致时，
+    // 则在父级的DOM元素中将之前的DOM节点替换成当前对应渲染的DOM节点(baseParent.replaceChild(base, initialBase))，
+    // 如果没有需要卸载的组件实例，则调用函数recollectNodeTree回收该DOM节点。
+    if (initialBase && base !== initialBase && inst !== initialChildComponent) {
+      const baseParent = initialBase.parentNode;
+      if (base && base !== baseParent) {
+        baseParent.replaceChild(base, initialBase);
+        if (!toUnmount) {
+          initialBase._component = null;
+          recollectNodeTree(initialBase, false);
+        }
+      }
+    }
+    // 否则如果之前组件渲染的是函数类型的元素，但需要废弃，
+    // 则调用函数unmountComponent进行卸载(调用相关的生命周期函数)。
+    if (toUnmount) {
+      unmountComponent(toUnmount);
+    }
+    // 将当前的组件渲染的dom元素存储在组件实例的base属性中
+    component.base = base;
+    // 假如有如下的结构: HOC1 => HOC2 => component => DOM元素
+    // 其中HOC代表高阶组件，component代表自定义组件。
+    // 你会发现HOC1、HOC2与compoent的base属性都指向最后的DOM元素，
+    // 而DOM元素的中的_component是指向HOC1的组价实例的。
+    // 其目的就是为了给父组件赋值正确的base属性以及为DOM节点的_component属性赋值正确的组件实例
+    if (base && !isChild) {
+      let componentRef = component;
+      let t = component;
+      while (t) {
+        t = t._parentComponent;
+        componentRef = t;
+        componentRef.base = base;
+      }
+      base._component = componentRef;
+      base._componentConstructor = componentRef.constructor;
+    }
+  }
+  // 如果是非更新模式，则需要将当前组件存入mounts(unshift方法存入，pop方法取出，
+  // 实质上是相当于队列的方式，并且子组件先于父组件存储队列mounts，因此可以保证正确的调用顺序)，
+  // 方便在后期调用组件对应类似于componentDidMount生命周期函数和其他的操作。
+
+  if (!isUpdate || mountAll) {
+    mounts.unshift(component);
+    // 如果没有跳过更新过程(skip === false)，则在此时调用组件对应的生命周期函数componentDidUpdate。
+  } else if (!skip) {
+    if (component.componentDidUpdate) {
+      component.componentDidUpdate(previousProps, previousState, snapshot);
+    }
+    if (options.afterUpdate) {
+      options.afterUpdate(component);
+    }
+  }
+  // 然后如果存在组件存在_renderCallbacks属性(存储对应的setState的回调函数，因为setState函数实质也是通过renderComponent实现的)，
+  // 则在此处将其弹出并执行。
+  while (component._renderCallbacks.length) {
+    component._renderCallbacks.pop().call(component);
+  }
+  if (!diffLevel && !isChild) {
+    flushMounts();
   }
 }
 
@@ -234,7 +342,7 @@ export function buildComponentFromVNode(dom, vnode, context, mountAll) {
   let c = dom && dom._component;
   const originalComponent = c;
   // 缓存dom
-  const oldDom = dom;
+  let oldDom = dom;
   // 用来标识原dom节点对应的组件类型是否与当前虚拟dom的组件类型相同
   const isDirectOwner = c && dom._componentConstructor === vnode.nodeName;
   const props = getNodeProps(vnode);
@@ -253,7 +361,30 @@ export function buildComponentFromVNode(dom, vnode, context, mountAll) {
   if (c && isOwner && (!mountAll || c.component)) {
     setComponentProps(c, props, ASYNC_RENDER, context, mountAll);
     dom = c.base;
+  } else {
+    // 如果之前的dom节点对应存在组件，并且虚拟dom对应的组件类型与其不相同时，
+    // 则卸载之前的组件(unmountComponent)。
+    // 接着我们通过调用函数createComponent创建当前虚拟dom对应的组件实例，
+    // 然后调用函数setComponentProps去创建组件实例的dom节点,
+    // 最后如果当前的dom与之前的dom元素不相同时，
+    // 将之前的dom回收(recollectNodeTree函数)。
+    if (originalComponent && !isDirectOwner) {
+      unmountComponent(originalComponent);
+    }
+    c = createComponent(vnode.nodeName, props, context);
+    if (dom && !c.nextBase) {
+      c.nextBase = dom;
+      oldDom = null;
+    }
+    setComponentProps(c, props, SYNC_RENDER, context, mountAll);
+
+    dom = c.base;
+    if (oldDom && dom !== oldDom) {
+      oldDom._component = null;
+      recollectNodeTree(oldDom, false);
+    }
   }
+  return dom;
 }
 
 /**

@@ -5,7 +5,7 @@ import { extend, hasOwnProperty } from '../util';
  * @param {import('../dom').PreactElement} node DOM元素
  * @param {*} nodeName 要比较的名称
  */
-export function isNodeName(node, nodeName) {
+export function isNamedNode(node, nodeName) {
   return (
     node.normalizedNodeName === nodeName ||
     node.nodeName.toLowerCase() === nodeName.toLowerCase()
