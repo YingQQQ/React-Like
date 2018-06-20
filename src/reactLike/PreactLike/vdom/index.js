@@ -1,3 +1,4 @@
+/* eslint-disable  no-underscore-dangle */
 import { extend, hasOwnProperty } from '../util';
 
 /**
@@ -12,6 +13,15 @@ export function isNamedNode(node, nodeName) {
   );
 }
 
+export function isSameNodeType(node, vnode, hydrating) {
+  if (typeof vnode === 'string' || typeof vnode === 'number') {
+    return vnode.splitText !== undefined;
+  }
+  if (typeof vnode.nodeName === 'string') {
+    return !node._componentConstructor && isNamedNode(node, vnode.nodeName);
+  }
+  return hydrating || node._componentConstructor === vnode.nodeName;
+}
 /**
  * 将vnode的attributes和chidlren的属性赋值到props,
  * 然后如果存在组件中存在defaultProps的话，

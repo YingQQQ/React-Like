@@ -9,12 +9,12 @@
 </head>
 
 <body>
-  <div style="border: 1px solid red">
-    <p id="p1">一段话的第一行.
-    </p>
+  <div style="border: 1px solid red" id="one">
+    <p id="p1">一段话的第一行.</p>
   </div>
-  <br />
-
+  <div style="border: 1px solid red" id="two">
+    <p id="p2">2段话的第一行.</p>
+  </div>
   <button onclick="addTextNode();">添加一个文本节点.</button>
 </body>
 <!-- <script src="./preact.js" type="text/javascript"></script> -->
@@ -28,46 +28,54 @@
     para.parentNode.replaceChild(newtext, para);
   }
   function Component(props, context) {
-	this._dirty = true;
+    this._dirty = true;
 
-	/**
-	 * @public
-	 * @type {object}
-	 */
-	this.context = context;
+    /**
+     * @public
+     * @type {object}
+     */
+    this.context = context;
 
-	/**
-	 * @public
-	 * @type {object}
-	 */
-	this.props = props;
+    /**
+     * @public
+     * @type {object}
+     */
+    this.props = props;
 
-	/**
-	 * @public
-	 * @type {object}
-	 */
-	this.state = this.state || {};
+    /**
+     * @public
+     * @type {object}
+     */
+    this.state = this.state || {};
 
-  this._renderCallbacks = [];
-}
-Component.prototype.render = function(){
-  console.log('123');
-};
-
-class Sub extends Component {
-  render() {
-    console.log('object');
+    this._renderCallbacks = [];
   }
-}
-var sss = new Sub();
-var bbb = new Component();
-sss.render()
-bbb.render()
-let init = 1;
-console.log( --init);
-console.log(  init);
+  Component.prototype.render = function () {
+    console.log('123');
+  };
 
+  class Sub extends Component {
+    render() {
+      console.log('object');
+    }
+  }
+  var sss = new Sub();
+  var bbb = new Component();
+  sss.render()
+  bbb.render()
+  let init = 1;
+  console.log(--init);
+  console.log(init);
 
+  var one = document.getElementById('one');
+  var two = document.getElementById('two');
+  var attr = one.attributes;
+  console.log(one.childNodes);
+
+  while (two.firstChild) {
+    one.appendChild(two.firstChild);
+    console.log(two.firstChild);
+  }
 </script>
 
 </html>
