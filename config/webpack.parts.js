@@ -6,6 +6,7 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const SWPrecacheWebpackPlugin = require('sw-precache-webpack-plugin');
 const webpack = require('webpack');
+const { CheckerPlugin } = require('awesome-typescript-loader');
 
 
 const styleOptions = path => ([
@@ -120,6 +121,21 @@ exports.loadJavaScript = ({ include, exclude, options } = {}) => ({
     ]
   }
 });
+exports.loadTypeScript = ({ include, exclude } = {}) => ({
+  module: {
+    rules: [
+      {
+        test: /\.(ts|tsx)$/,
+        include,
+        exclude,
+        loader: 'awesome-typescript-loader',
+      }
+    ]
+  },
+  plugins: [
+    new CheckerPlugin()
+  ],
+});
 
 /**
  * 增强调试过程,在开发过程中使用eval-source-map加快构建速度同时提供正确的映射关系
@@ -127,8 +143,8 @@ exports.loadJavaScript = ({ include, exclude, options } = {}) => ({
  * 只在开发过程中加入devtool
  * @param {String} mode
  */
-exports.generateSourceMaps = () => ({
-  devtool: 'eval-source-map'
+exports.generateSourceMaps = IS_DEV => ({
+  devtool: IS_DEV ? 'cheap-module-source-map' : 'source-map'
 });
 
 /**

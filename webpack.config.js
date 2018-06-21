@@ -40,9 +40,14 @@ const commonConfig = merge([
   },
   {
     resolve: {
-      extensions: ['.js', '.json', '.jsx']
+      extensions: ['ts', '.js', '.json', '.jsx']
     }
   },
+  parts.generateSourceMaps(IS_DEV),
+  parts.loadTypeScript({
+    include: PATHS.app,
+    exclude: /node_modules/,
+  }),
   parts.loadJavaScript({
     include: PATHS.app,
     exclude: /node_modules/,
@@ -64,7 +69,6 @@ const developmentConfig = merge([
     exclude: /node_modules/,
     path: PATHS.postcss
   }),
-  parts.generateSourceMaps,
   parts.setFreeVariable('__DEVELOPMENT__', 'true'),
 ]);
 

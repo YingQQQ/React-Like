@@ -1,23 +1,24 @@
-import { ConnectedRouter } from 'react-router-redux';
-import { Provider } from 'react-redux';
-import { render } from 'react-dom';
-import createHistory from 'history/createBrowserHistory';
-import injectTapEventPlugin from 'react-tap-event-plugin';
-import React from 'react';
+import App from './containers/app';
+import React from './reactLike/PreactLike/React';
+import render from './reactLike/PreactLike/render.ts';
 
-import configureStore from './store/configuerStore';
-import Routes from './routes';
-
-injectTapEventPlugin();
 const rootEl = window.document.getElementById('app');
-const store = configureStore();
-const history = createHistory();
 
-render(
-  <Provider store={store}>
-    <ConnectedRouter history={history}>
-      <Routes />
-    </ConnectedRouter>
-  </Provider>,
-  rootEl
-);
+// const vdom = (
+//   <div id="foo">
+//     <p>
+//       Look, a simple JSX DOM renderer!
+//       <ul>
+//         <li>1</li>
+//         <li>2</li>
+//         <li>
+//           <a>3</a>
+//         </li>
+//       </ul>
+//     </p>
+//   </div>
+// );
+// console.log(<App />);
+
+render(<App />, rootEl);
+
