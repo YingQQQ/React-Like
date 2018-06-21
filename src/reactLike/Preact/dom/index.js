@@ -58,7 +58,10 @@ export function setAccessor(node, name, old, value, isSvg) {
         });
       }
       Object.keys(value).forEach((i) => {
-        node.style[i] = typeof value[i] === 'number' && IS_NON_DIMENSIONAL.test(i) === false ? `${value[i]}px` : value[i];
+        node.style[i] =
+          typeof value[i] === 'number' && IS_NON_DIMENSIONAL.test(i) === false
+            ? `${value[i]}px`
+            : value[i];
       });
     }
   } else if (name === 'dangerouslySetInnerHTML' && value) {
@@ -82,16 +85,23 @@ export function setAccessor(node, name, old, value, isSvg) {
     }
   } else {
     // 确定是不是svg (name !== (name = name.replace(/^link:?/, ''))), 如果false则表示字符串中有'xlink'
-    const ns = isSvg && (name !== (name = name.replace(/^xlink:?/, '')));
+    const ns = isSvg && name !== (name = name.replace(/^xlink:?/, ''));
     if (value == null || value === false) {
       if (ns) {
-        node.removeAttributeNS('http://www.w3.org/1999/xlink', name.toLowerCase());
+        node.removeAttributeNS(
+          'http://www.w3.org/1999/xlink',
+          name.toLowerCase()
+        );
       } else {
         node.removeAttribute(name);
       }
     } else if (typeof value !== 'function') {
       if (ns) {
-        node.setAttributeNS('http://www.w3.org/1999/xlink', name.toLowerCase(), value);
+        node.setAttributeNS(
+          'http://www.w3.org/1999/xlink',
+          name.toLowerCase(),
+          value
+        );
       } else {
         node.setAttribute(name, value);
       }

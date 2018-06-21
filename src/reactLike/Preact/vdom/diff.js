@@ -395,5 +395,16 @@ export default function diff(
     // 只有当前的dom节点并不是由Preact所创建并渲染的才会使得hydrating为true。
     hydrating = dom != null && !(ATTR_KEY in dom);
   }
-  let ret = idiff(dom, vnode, context, mountAll, componentRoot);
+  const ret = idiff(dom, vnode, context, mountAll, componentRoot);
+
+  if (parent && ret.parentNode !== parent) {
+    parent.appendChild(ret);
+  }
+  if (!--diffLevel) {
+    hydrating = false;
+    if (!componentRoot) {
+      flushMounts();
+    }
+  }
+  return ret;
 }
