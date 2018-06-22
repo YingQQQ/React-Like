@@ -36,7 +36,7 @@ export default function render(
 }
 
 interface virtualDOM {
-  nodeName: string;
+  nodeName: string | Function;
   attributes: {
     [propName: string]: any;
   };
