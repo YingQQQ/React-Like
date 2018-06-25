@@ -1,6 +1,7 @@
 // import App from './containers/app';
 import React from './reactLike/PreactLike/React';
-// import render from './reactLike/PreactLike/render.ts';
+// import React from 'react';
+// import render from './reactLike/PreactLike/render';
 
 // const rootEl = window.document.getElementById('app');
 

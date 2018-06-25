@@ -1,4 +1,4 @@
-import createElement from './ReactElement.ts';
+import createElement from './ReactElement';
 
 const React = {
   createElement
