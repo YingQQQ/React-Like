@@ -1,46 +1,35 @@
-const ELEMENT_NODE = 1;
-// const TEXT_NODE = 3;
-// const COMMENT_NODE = 8;
-const DOCUMENT_NODE = 9;
-const DOCUMENT_FRAGMENT_NODE = 11;
+import { typeNumber } from './util/index';
 
-export default function renderA(vnode, container) {
-  let n;
+
+// undefined: 0, null: 1, boolean:2, number: 3, string: 4, function: 5, symbol:6, array: 7, object:8
+export default function render(vnode, container) {
+  const vnodeType = typeNumber(vnode.type);
+  let node;
   if (typeof vnode === 'string') {
-    return document.createTextNode(vnode);
+    node = document.createTextNode(vnode);
   }
-  if (typeof vnode !== 'function') {
-    n = document.createElement(vnode.nodeName);
-    const attributes = Object.keys(vnode.attributes || {});
-    if (attributes.length) {
-      attributes.forEach(k => n.setAttribute(k, vnode.attributes[k]));
+  if (vnodeType === 4) {
+    node = document.createElement(vnode.type);
+    const props = Object.keys(vnode.props || {});
+    const childType = typeNumber(vnode.props.children);
+    if (props.length) {
+      props.forEach((prop) => {
+        if (prop !== 'children') {
+          node.setAttribute(prop, vnode.props[prop]);
+        }
+      });
     }
-    (vnode.children || []).forEach(c => n.appendChild(render(c, null)));
-
-    if (container) {
-      container.appendChild(n);
-    } else {
-      document.body.appendChild(n);
+    if (childType === 7) {
+      vnode.props.children.forEach((child) => {
+        node.appendChild(render(child, null));
+      });
     }
+    if (childType === 4 || childType === 8) {
+      node.appendChild(render(vnode.props.children, null));
+    }
+  } else if (vnodeType === 5) {
+    const rendered = (vnode.type)();
+    return render(rendered, container);
   }
-  return n;
-}
-
-function isValidContainer(node) {
-  const nodeType = node.nodeType;
-  return !!(
-    nodeType === ELEMENT_NODE ||
-    nodeType === DOCUMENT_NODE ||
-    nodeType === DOCUMENT_FRAGMENT_NODE
-  );
-}
-
-function legacyRenderSubtreeIntoContainer(parentComponent, children, container, forceHydrate, callback) {
-  if (!isValidContainer(container)) {
-    console.warn('Target container is not a DOM element.');
-  }
-}
-
-export function render(vnode, container, callback) {
-  return legacyRenderSubtreeIntoContainer(null, vnode, container, false, callback);
+  return (container || document.body).appendChild(node);
 }

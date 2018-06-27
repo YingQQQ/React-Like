@@ -28,5 +28,5 @@ export function typeNumber(data) {
   }
   const type = numberMap[toString.call(data)];
 
-  return type;
+  return type || 8;
 }

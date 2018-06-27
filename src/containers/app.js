@@ -1,9 +1,10 @@
-import React from 'react';
+// import React from 'react';
+import React from '../reactLike/PreactLike/React';
 
 
 const App = () => (
   <div>
-    <h1>Understanding JSX</h1>
+    <h1>This is App Component!</h1>
   </div>
 );
 

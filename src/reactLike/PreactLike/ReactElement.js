@@ -81,12 +81,16 @@ function reactElement(type, tag, props, key, ref, owner) {
 export default function createElement(type, config, ...children) {
   const childrenLen = children.length;
   let props = {};
+  // 默认是5
   let tag = 5;
   let key = null;
   let ref = null;
 
-  if (type) {
-    tag = 1;
+  if (type && type.call) {
+    // func : 1, component:2
+    tag = type.prototype && type.prototype.render ? 2 : 1;
+  } else if (`${type}` !== type) {
+    console.warn('Element Type is invalid;');
   }
 
   if (config != null) {
