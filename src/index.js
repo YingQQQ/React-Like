@@ -1,24 +1,26 @@
-import App from './containers/app';
-import React from './reactLike/PreactLike/React';
 // import React from 'react';
-// import { render } from 'react-dom';
-import render from './reactLike/PreactLike/render';
+import { render } from 'react-dom';
+
+// import App from './containers/app';
+import React from './reactLike/react/React';
+// import render from './reactLike/react/render';
+// import { render } from './reactLike/react/react-dom/client/RenderDOM';
 
 const rootEl = window.document.getElementById('app');
 
 const vdom = (
   <div id="foo">
-    <App />
+    {/* <App /> */}
     <p>
       Look, a simple JSX DOM renderer!
-      <ul>
-        <li id="123">1</li>
-        <li>2</li>
-        <li>
-          <a>3</a>
-        </li>
-      </ul>
     </p>
+    <ul>
+      <li id="123" key="a" >1</li>
+      <li key="b">2</li>
+      <li key="c">
+        <a>3</a>
+      </li>
+    </ul>
   </div>
 );
 

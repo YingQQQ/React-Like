@@ -1,5 +1,5 @@
-// import React from 'react';
-import React from '../reactLike/PreactLike/React';
+import React from 'react';
+// import React from '../reactLike/react/React';
 
 
 const App = () => (
