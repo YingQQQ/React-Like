@@ -76,6 +76,25 @@
     one.appendChild(two.firstChild);
     console.log(two.firstChild);
   }
+
+  function choice(currentTime, fiber) {
+    if (currentTime === 1) {
+      console.log('11111');
+    } else if (fiber.mode) {
+      console.log('22222');
+    } else {
+      console.log('33333');
+    }
+    if (true) {
+      console.log(123);
+    }
+  }
+  choice(
+    11,
+    {
+      mode:2
+    }
+  )
 </script>
 
 </html>
