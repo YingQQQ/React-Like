@@ -1,8 +1,8 @@
-// import React from 'react';
+import React from 'react';
 import { render } from 'react-dom';
 
 // import App from './containers/app';
-import React from './reactLike/react/React';
+// import React from './reactLike/react/React';
 // import render from './reactLike/react/render';
 // import { render } from './reactLike/react/react-dom/client/RenderDOM';
 
@@ -12,7 +12,7 @@ const vdom = (
   <div id="foo">
     {/* <App /> */}
     <p>
-      Look, a simple JSX DOM renderer!
+      Look, a simple JSX DOM renderer!!
     </p>
     <ul>
       <li id="123" key="a" >1</li>
