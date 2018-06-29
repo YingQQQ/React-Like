@@ -11,17 +11,53 @@ const DOCUMENT_NODE = 9;
 // const DOCUMENT_FRAGMENT_NODE = 11;
 
 /**
+ * 主要用于生产回调函数的队列存储和触发
+ */
+function ReactWork() {
+  this._callbacks = null;
+  this._didCommit = false;
+  this._onCommit = this._onCommit.bind(this);
+}
+
+ReactWork.prototype.then = function ReactWorkThen(onCommit) {
+  if (this._didCommit) {
+    onCommit();
+    return;
+  }
+  let callbacks = this._callbacks;
+  if (!callbacks) {
+    callbacks = [];
+    this._callbacks = [];
+  }
+  callbacks.push(onCommit);
+};
+
+ReactWork.prototype._onCommit = function ReactWorkOnCommit() {
+  if (this._didCommit) {
+    return;
+  }
+  this._didCommit = true;
+  const callbacks = this._callbacks;
+  if (!callbacks) {
+    return;
+  }
+  callbacks.forEach((callback) => {
+    callback();
+  });
+};
+
+/**
  * 独新建个对象存放各种信息
  * @param {Element | Document} container  真实的DOM
- * @param {boolean} isAsync 是否进行异步渲染 
- * @param {boolean} hydrate 是否缓存属性 
+ * @param {boolean} isAsync 是否进行异步渲染
+ * @param {boolean} hydrate 是否缓存属性
  */
 // TODO: 给原型加上方法render, unmount...等等
 function ReactRoot(container, isAsync, hydrate) {
   const root = DOMRenderer.createContainer(container, isAsync, hydrate);
   this._internalRoot = root;
 }
-ReactRoot.prototype.render = function reactRootrender(children, callback) {
+ReactRoot.prototype.render = function reactRootRender(children, callback) {
   const root = this._internalRoot;
   const work = new ReactWork();
   callback = callback === undefined ? null : callback;
@@ -29,7 +65,41 @@ ReactRoot.prototype.render = function reactRootrender(children, callback) {
     work.then(callback);
   }
   DOMRenderer.updateContainer(children, root, null, work._onCommit);
+  return work;
 };
+ReactRoot.prototype.umount = function reactRootUmount(callback) {
+  const root = this._internalRoot;
+  const work = new ReactWork();
+  callback = callback === undefined ? null : callback;
+  if (callback != null) {
+    work.then(callback);
+  }
+  DOMRenderer.updateContainer(null, root, null, work._onCommit);
+  return work;
+};
+ReactRoot.prototype.legacy_renderSubtreeIntoContainer =
+  function reactRootlegacyRenderSubtreeIntoContainer(
+    parentComponent,
+    children,
+    callback
+  ) {
+    const root = this._internalRoot;
+    const work = new ReactWork();
+    callback = callback === undefined ? null : callback;
+    if (callback != null) {
+      work.then(callback);
+    }
+    DOMRenderer.updateContainer(children, root, parentComponent, work._onCommit);
+    return work;
+  };
+
+// ReactRoot.prototype.createBatch = function reactRootCreateBatch() {
+//   const batch = new ReactBatch(this);
+//   const expirationTime = batch._expirationTime;
+
+//   const internalRoot = this._internalRoot;
+//   const firstBatch = internalRoot.firstBatch;
+// };
 
 /**
  * 获取传入DOM的根元素
@@ -117,7 +187,7 @@ function legacyRenderSubtreeIntoContainer(
         root.legacy_renderSubtreeIntoContainer(
           parentComponent,
           children,
-          callback,
+          callback
         );
       } else {
         root.render(children, callback);
@@ -137,7 +207,7 @@ function legacyRenderSubtreeIntoContainer(
       root.legacy_renderSubtreeIntoContainer(
         parentComponent,
         children,
-        callback,
+        callback
       );
     } else {
       root.render(children, callback);
