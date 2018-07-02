@@ -33,11 +33,15 @@ export function createFiberRoot(containerInfo, isAsync, hydrate) {
     hydrate,
     // 剩余的工作阶段
     remainingExpirationTime: NoWork,
+    expirationTime: NoWork,
     // 是否第一次进行调度
     firstBatch: null,
     // 下次计划渲染的元素的链表
     nextScheduledRoot: null,
+    didError: false,
   };
   uninitializedFiber.stateNode = root;
   return root;
 }
+
+export function createWorkInProgress() {}

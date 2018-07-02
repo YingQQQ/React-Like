@@ -1,15 +1,22 @@
 /* eslint-disable  no-param-reassign */
 import { createFiberRoot } from './ReactFiberRoot';
+import { createUpdate, enqueueUpdate } from './ReactUpdateQueue';
 import { getPublicInstance } from './ReactFiberHostConfig';
 import { HostComponent } from '../../shared/ReactTypeOfWork';
 
 import {
   unbatchedUpdates,
   recalculateCurrentTime,
-  computeExpirationForFiber
+  computeExpirationForFiber,
+  scheduleWork
 } from './ReactFiberScheduler';
 import emptyObject from '../../lib/emptyObject';
 import * as ReactInstanceMap from '../../shared/ReactInstanceMap';
+import {
+  isContextProvider,
+  findCurrentUnmaskedContext,
+  processChildContext
+} from './ReactFiberContext';
 
 /**
  * 进入fiber算法
@@ -44,7 +51,28 @@ function getContextForSubtree(parentComponent) {
   // 查询没有被标记的context
   const parentContext = findCurrentUnmaskedContext(fiber);
   // 验证是否是有效的context
-  return isContextProvider(fiber) ? processChildContext(fiber, parentContext) : parentContext;
+  return isContextProvider(fiber)
+    ? processChildContext(fiber, parentContext)
+    : parentContext;
+}
+
+function scheduleRootUpdate(current, element, expirationTime, callback) {
+  const update = createUpdate(expirationTime);
+
+  update.payload = {
+    element
+  };
+
+  callback = callback === undefined ? null : callback;
+
+  if (callback !== null) {
+    update.callback = callback;
+  }
+  enqueueUpdate(current, update, expirationTime);
+
+  scheduleWork(current, expirationTime);
+
+  return expirationTime;
 }
 
 /**
@@ -52,7 +80,7 @@ function getContextForSubtree(parentComponent) {
  * @param {ReactNodeList} element 嵌套的子元素
  * @param {Fiber} container 被序列化之后的根源素
  * @param {ReactComponent} parentComponent 组件的实例
- * @param {number} expirationTime 渲染级别
+ * @param {number} expirationTime 渲染阶段
  * @param {func} callback 回调函数的队列, ReactWork的实例
  */
 function updateContainerAtExpirationTime(
@@ -64,7 +92,7 @@ function updateContainerAtExpirationTime(
 ) {
   const current = container.current;
 
-  // 从父组件获取context对象注入子代组件
+  // 从父组件获取context对象注入子代组件,同时之前实例中的context是null,现在如果父组件中没有context则赋值{}
   const context = getContextForSubtree(parentComponent);
   if (container.context === null) {
     container.context = context;

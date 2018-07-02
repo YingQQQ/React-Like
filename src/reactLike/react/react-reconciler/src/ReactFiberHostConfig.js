@@ -5,3 +5,5 @@ export function getPublicInstance(instance) {
 }
 
 export const now = ReactScheduler.now;
+
+export const isPrimaryRenderer = false;
