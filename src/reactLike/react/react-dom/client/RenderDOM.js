@@ -52,7 +52,6 @@ ReactWork.prototype._onCommit = function ReactWorkOnCommit() {
  * @param {boolean} isAsync 是否进行异步渲染
  * @param {boolean} hydrate 是否缓存属性
  */
-// TODO: 给原型加上方法render, unmount...等等
 function ReactRoot(container, isAsync, hydrate) {
   const root = DOMRenderer.createContainer(container, isAsync, hydrate);
   this._internalRoot = root;
@@ -92,7 +91,7 @@ ReactRoot.prototype.legacy_renderSubtreeIntoContainer =
     DOMRenderer.updateContainer(children, root, parentComponent, work._onCommit);
     return work;
   };
-
+// TODO: 完成原型方法createBatch
 // ReactRoot.prototype.createBatch = function reactRootCreateBatch() {
 //   const batch = new ReactBatch(this);
 //   const expirationTime = batch._expirationTime;
