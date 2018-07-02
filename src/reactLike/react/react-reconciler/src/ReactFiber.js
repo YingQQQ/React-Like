@@ -27,6 +27,7 @@ function FiberNode(tag, pendingProps, key, mode) {
   this.pendingProps = pendingProps;
   // 被记录的属性
   this.memoizedProps = null;
+  this.memoizedState = null;
   this.updateQueue = null;
 
   this.mode = mode;
