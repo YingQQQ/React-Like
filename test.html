@@ -90,11 +90,32 @@
     }
   }
   choice(
-    11,
+    1,
     {
       mode:2
     }
   )
+
+  let objectMayChange = {
+    one: '1',
+    two: '2',
+    other: {
+      a: 'index',
+      b: 'app'
+    },
+    lastUpdate: null
+  }
+
+  function changeObj(obj, update) {
+    if (obj.third === null) {
+      obj.third = '3'
+    } else {
+      // obj.lastUpdate.next = update;
+      obj.lastUpdate = update;
+    }
+  }
+  changeObj(objectMayChange, {update: 'update'})
+  console.log(objectMayChange);
 </script>
 
 </html>

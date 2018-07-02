@@ -2,8 +2,8 @@ import React from 'react';
 import { render } from 'react-dom';
 
 // import App from './containers/app';
-// import React from './reactLike/react/React';
 // import render from './reactLike/react/render';
+// import React from './reactLike/react/React';
 // import { render } from './reactLike/react/react-dom/client/RenderDOM';
 
 const rootEl = window.document.getElementById('app');
