@@ -17,6 +17,7 @@ function FiberNode(tag, pendingProps, key, mode) {
   this.type = null;
   this.stateNode = null;
 
+  // 表链结构
   this.return = null;
   this.child = null;
   this.sibling = null;
@@ -41,7 +42,7 @@ function FiberNode(tag, pendingProps, key, mode) {
 
   // 到期阶段标识
   this.expirationTime = NoWork;
-  // 备用
+  // 备用,在fiber更新时克隆出的镜像fiber，对fiber的修改会标记在这个fiber上
   this.alternate = null;
 }
 
