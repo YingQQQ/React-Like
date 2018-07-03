@@ -1,10 +1,15 @@
+/* eslint-disable no-param-reassign */
+/* eslint-disable no-underscore-dangle */
 import { AsyncMode } from './ReactTypeOfMode';
 import { computeExpirationBucket } from './ReactFiberExpirationTime';
 import { HostRoot } from '../../shared/ReactTypeOfWork';
 import { msToExpirationTime, NoWork, Sync } from './ReactFiberExpirationTime';
 import { now } from './ReactFiberHostConfig';
 import { unwindInterruptedWork } from './ReactFiberUnwindWork';
+import { markPendingPriorityLevel } from './ReactFiberPendingPriority';
 
+const timeHeuristicForUnitOfWork = 1;
+// Linked-list of roots
 let interruptedBy = null; // Fiber || null
 // 正在处理队列中的下一个Fiber对象
 let nextUnitOfWork = null; // Fiber | null 
@@ -13,6 +18,14 @@ let isUnbatchingUpdates = false;
 let isBatchingUpdates = false;
 let isBatchingInteractiveUpdates = false;
 let lowestPendingInteractiveExpirationTime = NoWork;
+
+let nextFlushedRoot = null;
+let nextFlushedExpirationTime = NoWork;
+
+let isRendering = false;
+
+let lastScheduledRoot = null;
+let firstScheduledRoot = null;
 
 export function unbatchedUpdates(fn, a) {
   if (isBatchingUpdates && !isUnbatchingUpdates) {
@@ -41,6 +54,11 @@ let isWorking = false;
 let isCommitting = false;
 // 下一个渲染级别
 let nextRenderExpirationTime = NoWork;
+
+let deadline = null;
+let deadlineDidExpire = false;
+
+let completedBatches = null;
 
 /**
  * 计算获取正在更新渲染的时间
@@ -73,7 +91,147 @@ function resetStack() {
     }
   }
 }
-// TODO: 完成markCommittedPriorityLevels,requestWork
+/**
+ * 在异步任务的时候,调度器会查询渲染是否需要全部执行,如果是DOM对象,我们这调取requestIdleCallback去实现
+ */
+function shouldYield() {
+  if (deadline === null || deadlineDidExpire) {
+    return false;
+  }
+
+  if (deadline.timeRemaining() > timeHeuristicForUnitOfWork) {
+    // 忽视 deadline.didTimeout, 只有已经过期的任务能被刷新在超时阶段, 仅针对未过期的任务
+    return false;
+  }
+  deadlineDidExpire = true;
+  return true;
+}
+// TODO: commitRoot
+function completeRoot(root, finishedWork, expirationTime) {
+  // 检查此次所有任务是否有匹配的到期时间
+  const firstBatch = root.firstBatch;
+  if (firstBatch !== null && firstBatch.__expirationTime <= expirationTime) {
+    if (completedBatches === null) {
+      completedBatches = [firstBatch];
+    } else {
+      completedBatches.push(firstBatch);
+    }
+    if (firstBatch._defer) {
+      // 暂停此项任务进入下一个阶段, 直到接到下个更新
+      root.finishedWork = finishedWork;
+      root.expirationTime = NoWork;
+      return;
+    }
+  }
+  // 提交进入下一个阶段
+  root.finishedWork = null;
+  commitRoot(root, finishedWork);
+}
+/**
+ * 
+ * @param {FiberRoot} root ReactFiberRoot中createFiberRoot返回的实例 
+ * @param {number} expirationTime 优先级别
+ * @param {boolean} isYieldy 是否是异步任务
+ */
+// TODO: 完成renderRoot
+function performWorkOnRoot(root, expirationTime, isYieldy) {
+  isRendering = true;
+  // 检查是异步或者是同步/过期的任务
+  if (!isYieldy) {
+    // 刷新任务在没有需求产出的情况下
+    let finishedWork = root.finishedWork;
+    if (finishedWork !== null) {
+      // 根节点的任务已经完成,我们就提交进入下一个阶段
+      completeRoot(root, finishedWork, expirationTime);
+    } else {
+      renderRoot(root, false);
+      finishedWork = root.finishedWork;
+      if (finishedWork !== null) {
+        // 根节点的任务已经完成,我们就提交进入下一个阶段
+        completeRoot(root, finishedWork, expirationTime);
+      }
+    }
+  } else {
+    // 刷新异步任务
+    let finishedWork = root.finishedWork;
+    if (finishedWork !== null) {
+      completeRoot(root, finishedWork, expirationTime);
+    } else {
+      renderRoot(root, true);
+      finishedWork = root.finishedWork;
+      // 检查完成之后是否还有时间多余
+      if (finishedWork !== null) {
+        if (!shouldYield()) {
+          // 如果还有时间多余
+          completeRoot(root, finishedWork, expirationTime);
+        } else {
+          // 如果没有时间多余,则标记root已经完成,然后再下一次在提交进入下一个阶段
+          root.finishedWork = finishedWork;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * @param {FiberRoot} root ReactFiberRoot中createFiberRoot返回的实例
+ * @param {number} expirationTime 优先级别
+ */
+function addRootToSchedule(root, expirationTime) {
+  // 检查传入的对象是不是已经在链表中
+  if (root.nextScheduledRoot === null) {
+    // 如果不存在则加入表链
+    root.expirationTime = expirationTime;
+    if (lastScheduledRoot === null) {
+      firstScheduledRoot = root;
+      lastScheduledRoot = root;
+      root.nextScheduledRoot = root;
+    } else {
+      lastScheduledRoot.nextScheduledRoot = root;
+      lastScheduledRoot = root;
+      firstScheduledRoot.nextScheduledRoot = firstScheduledRoot;
+    }
+  } else {
+    // 如果传入的对象已经在链表中,则需要更新其优先级
+    const remainingExpirationTime = root.expirationTime;
+    if (remainingExpirationTime === NoWork || remainingExpirationTime > expirationTime) {
+      root.expirationTime = expirationTime;
+    }
+  }
+}
+
+/**
+ * 每当更新的时候都会调用requestWork,以便在之后的渲染中调用
+ * @param {FiberRoot} root ReactFiberRoot中createFiberRoot返回的实例
+ * @param {number} expirationTime 优先级别
+ */
+export function requestWork(root, expirationTime) {
+  addRootToSchedule(root, expirationTime);
+
+  if (isRendering) {
+    // 防止重复注入, 在当前渲染任务的最后会调度剩余的任务
+    return;
+  }
+  if (isBatchingUpdates) {
+    // 在当前渲染完成后刷新队列
+    if (isUnbatchingUpdates) {
+      // 除非我们正处于isUnbatchingUpdatesd状态中,那我们立刻刷新队列
+      nextFlushedRoot = root;
+      nextFlushedExpirationTime = Sync;
+      performWorkOnRoot(root, Sync, false);
+    }
+    return;
+  }
+
+  if (expirationTime === Sync) {
+    performSyncWork();
+  } else {
+    scheduleCallbackWithExpirationTime(expirationTime);
+  }
+}
+
+
+// TODO: requestWork
 export function scheduleWork(fiber, expirationTime) {
   let node = fiber;
   while (node !== null) {
@@ -99,14 +257,16 @@ export function scheduleWork(fiber, expirationTime) {
           nextRenderExpirationTime !== NoWork &&
           expirationTime < nextRenderExpirationTime
         ) {
+          // 如果队列级别紊乱,则重新调整
           interruptedBy = fiber;
           resetStack();
         }
+        // 给需要进行渲染的虚拟DOM标记优先级
         markPendingPriorityLevel(root, expirationTime);
-        // 如果我们处在渲染阶段,我们则不安排根目录进行更新,因为我们会在渲染过程退出前处理
+        // 如果我们处在渲染阶段,我们则不再安排根目录进行更新,因为我们会在渲染过程退出前处理
         if (!isWorking && isCommitting && nextRoot !== root) {
-          const rootExpirtationTime = root.expirtationTime;
-          requestWork(root, rootExpirtationTime);
+          const rootExpirationTime = root.expirationTime;
+          requestWork(root, rootExpirationTime);
         }
       } else {
         return;
