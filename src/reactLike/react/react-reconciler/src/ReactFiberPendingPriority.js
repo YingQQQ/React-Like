@@ -67,4 +67,64 @@ export function markPendingPriorityLevel(root, expirationTime) {
   findNextPendingPriorityLevel(root);
 }
 
-export function markCommittedPriorityLevels() {}
+export function markCommittedPriorityLevels(root, earliestRemainingTime) {
+  root.didError = false;
+  if (earliestRemainingTime === NoWork) {
+    // 没有剩余任务,则清除所有的状态回归NoWork
+    root.earliestPendingTime = NoWork;
+    root.latestPendingTime = NoWork;
+    root.earliestSuspendedTime = NoWork;
+    root.latestSuspendedTime = NoWork;
+    root.latestPingedTime = NoWork;
+    findNextPendingPriorityLevel(root);
+    return;
+  }
+
+  const latestPendingTime = root.latestPendingTime;
+
+  // 如果之前最新已知等待处理的等级刚刚被刷新
+  if (latestPendingTime !== NoWork) {
+    if (latestPendingTime < earliestRemainingTime) {
+      // 刷新所以已知的等待执行任务
+      root.earliestPendingTime = NoWork;
+      root.latestPendingTime = NoWork;
+    } else {
+      const earliestPendingTime = root.earliestPendingTime;
+      if (earliestPendingTime < earliestRemainingTime) {
+        // 刷新最早的等待执行的任务,把他替换成最新等待执行任务
+        root.earliestPendingTime = root.latestPendingTime;
+      }
+    }
+  }
+  // 接着处理整个虚拟线程剩下的未完成的任务,我们需要判断哪些是需要等待执行哪些是
+  // 需要被暂停的.检查这些任务哪些处在暂停执行的范围内
+  const earliestSuspendedTime = root.earliestSuspendedTime;
+  if (earliestSuspendedTime === NoWork) {
+    // 没有暂停的任务,则我们把剩余的任务级别都设定为待执行的
+    markPendingPriorityLevel(root, earliestRemainingTime);
+    findNextPendingPriorityLevel(root);
+    return;
+  }
+
+  const latestSuspendedTime = root.latestSuspendedTime;
+
+  if (earliestRemainingTime > latestSuspendedTime) {
+    // 如果最早的任务剩余时间大于最后暂停的任务,则说明需要刷新所有的暂停任务
+    root.earliestSuspendedTime = NoWork;
+    root.latestSuspendedTime = NoWork;
+    root.latestPingedTime = NoWork;
+
+    markPendingPriorityLevel(root, earliestRemainingTime);
+    findNextPendingPriorityLevel(root);
+    return;
+  }
+  if (earliestRemainingTime < latestSuspendedTime) {
+    // 如果最早的任务剩余时间<最后暂停的任务,则说明还有等待更新的任务
+
+    markPendingPriorityLevel(root, earliestRemainingTime);
+    findNextPendingPriorityLevel(root);
+    return;
+  }
+  // 如果剩余的时间在暂停时间范围内,则处理这些暂停任务
+  findNextPendingPriorityLevel(root);
+}

@@ -96,26 +96,22 @@
     }
   )
 
-  let objectMayChange = {
-    one: '1',
-    two: '2',
-    other: {
-      a: 'index',
-      b: 'app'
-    },
-    lastUpdate: null
-  }
 
-  function changeObj(obj, update) {
-    if (obj.third === null) {
-      obj.third = '3'
-    } else {
-      // obj.lastUpdate.next = update;
-      obj.lastUpdate = update;
-    }
-  }
-  changeObj(objectMayChange, {update: 'update'})
-  console.log(objectMayChange);
+// setTimeout(function () {
+//     function loop(n) {
+//         for (let i = 0; i < 5; i++) {
+//             console.log(`i:${i}`);
+//         }
+//         if (n) {
+//           console.log('object');
+//             setTimeout(function () {
+//                 loop(n - 1);
+//             }, 40);
+//         }
+//     }
+//     loop(10);
+// }, 3000);
+
 </script>
 
 </html>

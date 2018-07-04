@@ -1,18 +1,22 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-underscore-dangle */
+/* eslint-disable no-bitwise */
 import { AsyncMode } from './ReactTypeOfMode';
 import { computeExpirationBucket } from './ReactFiberExpirationTime';
 import { HostRoot } from '../../shared/ReactTypeOfWork';
 import { msToExpirationTime, NoWork, Sync } from './ReactFiberExpirationTime';
 import { now } from './ReactFiberHostConfig';
 import { unwindInterruptedWork } from './ReactFiberUnwindWork';
-import { markPendingPriorityLevel } from './ReactFiberPendingPriority';
+import { markPendingPriorityLevel, markCommittedPriorityLevels } from './ReactFiberPendingPriority';
+import ReactCurrentOwner from '../../react/src/ReactCurrentOwner';
+import { PerformedWork, Snapshot } from '../../shared/ReactTypeOfSideEffect';
+import { commitBeforeMutationLifeCycles } from './ReactFiberCommitWork';
 
 const timeHeuristicForUnitOfWork = 1;
 // Linked-list of roots
 let interruptedBy = null; // Fiber || null
 // 正在处理队列中的下一个Fiber对象
-let nextUnitOfWork = null; // Fiber | null 
+let nextUnitOfWork = null; // Fiber | null
 let nextRoot = null;
 let isUnbatchingUpdates = false;
 let isBatchingUpdates = false;
@@ -60,6 +64,9 @@ let deadlineDidExpire = false;
 
 let completedBatches = null;
 
+// 异步标识
+let nextEffect = null;
+
 /**
  * 计算获取正在更新渲染的时间
  * @param {number} currentTime当前消耗的时间
@@ -106,7 +113,74 @@ function shouldYield() {
   deadlineDidExpire = true;
   return true;
 }
-// TODO: commitRoot
+
+function commitBeforeMutationLifecycles() {
+  while (nextEffect !== null) {
+    const effectTag = nextEffect.effectTag;
+    if (effectTag & Snapshot) {
+      const current = nextEffect.alternate;
+      commitBeforeMutationLifeCycles(current, nextEffect);
+    }
+    nextEffect = nextEffect.nextEffect;
+  }
+}
+
+function commitRoot(root, finishedWork) {
+  isWorking = true;
+  isCommitting = true;
+  const committedExpirationTime = root.pendingCommitExpirationTime;
+  root.pendingCommitExpirationTime = NoWork;
+  // 更新我提交任务中中等待执行任务的优先级, 这些发生在生命周期开始之前,因为
+  // 可能会有其他需要更新的内容增加
+  const earliestRemainingTime = finishedWork.expirationTime;
+  markCommittedPriorityLevels(root, earliestRemainingTime);
+
+  // 重新设置组件缓存标记为null
+  ReactCurrentOwner.current = null;
+
+  let firstEffect;
+  if (finishedWork.effectTag > PerformedWork) {
+    // 一个fiber对象的副作用列表只有child组成,所以如果根节点发生了副作用
+    // 我们需要把根节点放到列表的最后,最后的列表是一个根节点的集合列表,如果
+    // 有一个集合,那说明这是这个根节点所有的副作用(异步请求)
+    if (finishedWork.lastEffect !== null) {
+      finishedWork.lastEffect.nextEffect = finishedWork;
+      firstEffect = finishedWork.firstEffect;
+    } else {
+      firstEffect = finishedWork;
+    }
+  } else {
+    // 如果没有副作用(异步请求)
+    firstEffect = finishedWork.firstEffect;
+  }
+
+  // 准备提交转化成真实的DOM
+  prepareForCommit(root.containerInfo);
+
+  nextEffect = firstEffect;
+
+  // 在挂载之前调用getSnapshotBeforeUpdate
+  while (nextEffect !== null) {
+    let didError = false;
+    let error;
+
+    try {
+      commitBeforeMutationLifecycles();
+    } catch (e) {
+      didError = true;
+      error = e;
+    }
+    if (didError) {
+      // 捕获提交碎片时的错误
+      captureCommitPhaseError(nextEffect, error);
+
+      if (nextEffect !== null) {
+        nextEffect = nextEffect.nextEffect;
+      }
+    }
+  }
+}
+
 function completeRoot(root, finishedWork, expirationTime) {
   // 检查此次所有任务是否有匹配的到期时间
   const firstBatch = root.firstBatch;
@@ -128,8 +202,8 @@ function completeRoot(root, finishedWork, expirationTime) {
   commitRoot(root, finishedWork);
 }
 /**
- * 
- * @param {FiberRoot} root ReactFiberRoot中createFiberRoot返回的实例 
+ *
+ * @param {FiberRoot} root ReactFiberRoot中createFiberRoot返回的实例
  * @param {number} expirationTime 优先级别
  * @param {boolean} isYieldy 是否是异步任务
  */
@@ -194,7 +268,10 @@ function addRootToSchedule(root, expirationTime) {
   } else {
     // 如果传入的对象已经在链表中,则需要更新其优先级
     const remainingExpirationTime = root.expirationTime;
-    if (remainingExpirationTime === NoWork || remainingExpirationTime > expirationTime) {
+    if (
+      remainingExpirationTime === NoWork ||
+      remainingExpirationTime > expirationTime
+    ) {
       root.expirationTime = expirationTime;
     }
   }
@@ -229,7 +306,6 @@ export function requestWork(root, expirationTime) {
     scheduleCallbackWithExpirationTime(expirationTime);
   }
 }
-
 
 // TODO: requestWork
 export function scheduleWork(fiber, expirationTime) {
