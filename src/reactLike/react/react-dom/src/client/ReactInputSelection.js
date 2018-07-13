@@ -1,4 +1,5 @@
 import getActiveElement from './getActiveElement';
+import * as ReactDOMSelection from './ReactDOMSelection';
 
 /**
  * 判断是不是能获取焦点的元素
@@ -45,6 +46,7 @@ function getSelection(input) {
 
 /**
  * 检查要渲染元素得是否有必要获取焦点input, textarea
+ * @returns {DOM, getSelection}
  */
 export function getSelectionInformation() {
   const focusedElem = getActiveElement();

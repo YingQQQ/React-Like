@@ -1,6 +1,6 @@
 /* eslint-disable  import/no-mutable-exports */
 import ExecutionEnvironment from '../lib/ExecutionEnvironment';
-import requestAnimationFrameForReact from '../shared/requestAnimationFrameForReact';
+import requestAnimationFrameForReact from './requestAnimationFrameForReact';
 
 const hasNativePerformanceNow =
   typeof performance === 'object' && typeof performance.now === 'function';

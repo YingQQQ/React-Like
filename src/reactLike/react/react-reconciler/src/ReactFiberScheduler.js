@@ -3,14 +3,19 @@
 /* eslint-disable no-bitwise */
 import { AsyncMode } from './ReactTypeOfMode';
 import { computeExpirationBucket } from './ReactFiberExpirationTime';
-import { HostRoot } from '../../shared/ReactTypeOfWork';
+import { HostRoot, ClassComponent } from '../../shared/ReactTypeOfWork';
 import { msToExpirationTime, NoWork, Sync } from './ReactFiberExpirationTime';
 import { now } from './ReactFiberHostConfig';
 import { unwindInterruptedWork } from './ReactFiberUnwindWork';
-import { markPendingPriorityLevel, markCommittedPriorityLevels } from './ReactFiberPendingPriority';
+import {
+  markPendingPriorityLevel,
+  markCommittedPriorityLevels
+} from './ReactFiberPendingPriority';
 import ReactCurrentOwner from '../../react/src/ReactCurrentOwner';
 import { PerformedWork, Snapshot } from '../../shared/ReactTypeOfSideEffect';
 import { commitBeforeMutationLifeCycles } from './ReactFiberCommitWork';
+import { prepareForCommit } from './ReactFiberHostConfig';
+import { enqueueUpdate } from './ReactUpdateQueue';
 
 const timeHeuristicForUnitOfWork = 1;
 // Linked-list of roots
@@ -97,6 +102,11 @@ function resetStack() {
       interruptedWork = interruptedWork.return;
     }
   }
+  nextRoot = null;
+  nextRenderExpirationTime = NoWork;
+  nextLatestTimeoutMs = -1;
+  nextRenderDidError = false;
+  nextUnitOfWork = null;
 }
 /**
  * 在异步任务的时候,调度器会查询渲染是否需要全部执行,如果是DOM对象,我们这调取requestIdleCallback去实现
@@ -124,7 +134,51 @@ function commitBeforeMutationLifecycles() {
     nextEffect = nextEffect.nextEffect;
   }
 }
+/**
+ *
+ * @param {Fiber} sourceFiber
+ * @param {error String} value
+ * @param {number} expirationTime
+ */
+function dispatch(sourceFiber, value, expirationTime) {
+  // 获取父元素
+  let fiber = sourceFiber.return;
+  while (fiber !== null) {
+    if (fiber.tag === ClassComponent) {
+      const ctor = fiber.type;
+      const instance = fiber.stateNode;
+      if (
+        typeof ctor.getDerivedStateFromCatch === 'function' ||
+        (typeof instance.componentDidCatch === 'function' &&
+          !isAlreadyFailedLegacyErrorBoundary(instance))
+      ) {
+        const errorInfo = createCapturedValue(value, sourceFiber);
+        const update = createClassErrorUpdate(fiber, errorInfo, expirationTime);
+        enqueueUpdate(fiber, update, expirationTime);
+        scheduleWork(fiber, expirationTime);
+        return;
+      }
+    }
+    // render时进入根目录
+    if (fiber.tag === HostRoot) {
+      const errorInfo = createCapturedValue(value, sourceFiber);
+      const update = createRootErrorUpdate(fiber, errorInfo, expirationTime);
+      enqueueUpdate(fiber, update, expirationTime);
+      scheduleWork(fiber, expirationTime);
+      return;
+    }
+    fiber = fiber.return;
+  }
+}
 
+function captureCommitPhaseError(fiber, error) {
+  return dispatch(fiber, error, Sync);
+}
+/**
+ *
+ * @param {FiberRoot} root
+ * @param {fiber} finishedWork
+ */
 function commitRoot(root, finishedWork) {
   isWorking = true;
   isCommitting = true;
@@ -154,7 +208,7 @@ function commitRoot(root, finishedWork) {
     firstEffect = finishedWork.firstEffect;
   }
 
-  // 准备提交转化成真实的DOM
+  // 准备提交转化成真实的DOM,判断是否启动事件监听,是否是能获取焦点的元素
   prepareForCommit(root.containerInfo);
 
   nextEffect = firstEffect;

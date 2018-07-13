@@ -1,5 +1,6 @@
 import * as ReactScheduler from '../../shared/ReactScheduler';
 import * as ReactBrowserEventEmitter from '../../react-dom/src/events/ReactBrowserEventEmitter';
+import * as ReactInputSelection from '../../react-dom/src/client/ReactInputSelection';
 
 let eventsEnabled = null;
 let selectionInformation = null;

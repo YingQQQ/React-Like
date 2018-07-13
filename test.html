@@ -8,109 +8,19 @@
   <title>Document</title>
 </head>
 
-<body>
-  <div style="border: 1px solid red" id="one">
-    <p id="p1">一段话的第一行.</p>
-  </div>
-  <div style="border: 1px solid red" id="two">
-    <p id="p2">2段话的第一行.</p>
-  </div>
-  <button onclick="addTextNode();">添加一个文本节点.</button>
+<body >
+    <p>点击文档中任意一元素输出元素标签名。</p>
+    <input type="text" value="输入字段" onclick="myFunction()">
+    <button >按钮</button>
+    <p id="demo"></p>
 </body>
 <!-- <script src="./preact.js" type="text/javascript"></script> -->
 <script type="text/javascript">
-  // console.log(preact);
-  var body = document.body;
-  var parent = body.parentNode;
-  function addTextNode() {
-    var newtext = document.createTextNode("动态添加一些文本");
-    var para = document.getElementById("p1");
-    para.parentNode.replaceChild(newtext, para);
-  }
-  function Component(props, context) {
-    this._dirty = true;
-
-    /**
-     * @public
-     * @type {object}
-     */
-    this.context = context;
-
-    /**
-     * @public
-     * @type {object}
-     */
-    this.props = props;
-
-    /**
-     * @public
-     * @type {object}
-     */
-    this.state = this.state || {};
-
-    this._renderCallbacks = [];
-  }
-  Component.prototype.render = function () {
-    console.log('123');
-  };
-
-  class Sub extends Component {
-    render() {
-      console.log('object');
-    }
-  }
-  var sss = new Sub();
-  var bbb = new Component();
-  sss.render()
-  bbb.render()
-  let init = 1;
-  console.log(--init);
-  console.log(init);
-
-  var one = document.getElementById('one');
-  var two = document.getElementById('two');
-  var attr = one.attributes;
-  console.log(one.childNodes);
-
-  while (two.firstChild) {
-    one.appendChild(two.firstChild);
-    console.log(two.firstChild);
-  }
-
-  function choice(currentTime, fiber) {
-    if (currentTime === 1) {
-      console.log('11111');
-    } else if (fiber.mode) {
-      console.log('22222');
-    } else {
-      console.log('33333');
-    }
-    if (true) {
-      console.log(123);
-    }
-  }
-  choice(
-    1,
-    {
-      mode:2
-    }
-  )
-
-
-// setTimeout(function () {
-//     function loop(n) {
-//         for (let i = 0; i < 5; i++) {
-//             console.log(`i:${i}`);
-//         }
-//         if (n) {
-//           console.log('object');
-//             setTimeout(function () {
-//                 loop(n - 1);
-//             }, 40);
-//         }
-//     }
-//     loop(10);
-// }, 3000);
+function myFunction() {
+    var x = document.activeElement.tagName;
+    var word = window.getSelection && window.getSelection()
+    console.log(word);
+}
 
 </script>
 
