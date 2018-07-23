@@ -6,6 +6,7 @@ import {
   ContextProvider
 } from '../../shared/ReactTypeOfWork';
 import { popHostContainer, popHostContext } from './ReactFiberHostContext';
+import { markLegacyErrorBoundaryAsFailed } from './ReactFiberScheduler';
 
 import {
   popContextProvider as popLegacyContextProvider,
@@ -13,6 +14,9 @@ import {
 } from './ReactFiberContext';
 
 import { popProvider } from './ReactFiberNewContext';
+import { createUpdate, CaptureUpdate } from './ReactUpdateQueue';
+import { enableGetDerivedStateFromCatch } from '../../shared/ReactFeatureFlags';
+import { logError } from './ReactFiberCommitWork';
 
 function unwindInterruptedWork(interruptedWork) {
   switch (interruptedWork.tag) {
@@ -36,6 +40,45 @@ function unwindInterruptedWork(interruptedWork) {
       break;
   }
 }
+/**
+ * 
+ * @param {fiber} fiber fiber对象 
+ * @param {object} errorInfo 错误信息对象: {value: string}, {source: fiber}, {stack: string}
+ * @param {number} expirationTime 
+ */
+function createClassErrorUpdate(fiber, errorInfo, expirationTime) {
+  const update = createUpdate(expirationTime);
+  update.tag = CaptureUpdate;
+  const getDerivedStateFromCatch = fiber.type.getDerivedStateFromCatch;
+  if (
+    enableGetDerivedStateFromCatch &&
+    typeof getDerivedStateFromCatch === 'function'
+  ) {
+    const error = errorInfo.value;
+    update.payload = () => getDerivedStateFromCatch(error);
+  }
+
+  // 获取上一个组件的实例,备份的.
+  const inst = fiber.stateNode;
+  if (inst !== null && typeof inst.componentDidCatch === 'function') {
+    update.callback = function callback() {
+      if (
+        !enableGetDerivedStateFromCatch ||
+        typeof getDerivedStateFromCatch !== 'function'
+      ) {
+        // 在进入浏览器之前,标记错误边界
+        markLegacyErrorBoundaryAsFailed(this);
+      }
+      const error = errorInfo.value;
+      const stack = errorInfo.stack;
+      logError(fiber, errorInfo);
+      this.componentDidCatch(error, {
+        componentStack: stack !== null ? stack : ''
+      });
+    };
+  }
+  return update;
+}
 
 function throwException() {}
-export { unwindInterruptedWork, throwException };
+export { unwindInterruptedWork, throwException, createClassErrorUpdate };

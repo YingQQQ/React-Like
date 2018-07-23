@@ -2,6 +2,7 @@
 import { NoWork } from './ReactFiberExpirationTime';
 
 export const UpdateState = 0;
+export const CaptureUpdate = 3;
 
 export function createUpdate(expirationTime) {
   return {

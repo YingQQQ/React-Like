@@ -6,7 +6,11 @@ import { computeExpirationBucket } from './ReactFiberExpirationTime';
 import { HostRoot, ClassComponent } from '../../shared/ReactTypeOfWork';
 import { msToExpirationTime, NoWork, Sync } from './ReactFiberExpirationTime';
 import { now } from './ReactFiberHostConfig';
-import { unwindInterruptedWork } from './ReactFiberUnwindWork';
+
+import {
+  unwindInterruptedWork,
+  createClassErrorUpdate
+} from './ReactFiberUnwindWork';
 import {
   markPendingPriorityLevel,
   markCommittedPriorityLevels
@@ -16,6 +20,7 @@ import { PerformedWork, Snapshot } from '../../shared/ReactTypeOfSideEffect';
 import { commitBeforeMutationLifeCycles } from './ReactFiberCommitWork';
 import { prepareForCommit } from './ReactFiberHostConfig';
 import { enqueueUpdate } from './ReactUpdateQueue';
+import createCapturedValue from './ReactCapturedValue';
 
 const timeHeuristicForUnitOfWork = 1;
 // Linked-list of roots
@@ -35,6 +40,8 @@ let isRendering = false;
 
 let lastScheduledRoot = null;
 let firstScheduledRoot = null;
+
+let legacyErrorBoundariesThatAlreadyFailed = null;
 
 export function unbatchedUpdates(fn, a) {
   if (isBatchingUpdates && !isUnbatchingUpdates) {
@@ -135,39 +142,24 @@ function commitBeforeMutationLifecycles() {
   }
 }
 /**
- *
- * @param {Fiber} sourceFiber
- * @param {error String} value
- * @param {number} expirationTime
+ *检查是否还有已经遗留的错误边界
+ * @param {fiber} instance
  */
-function dispatch(sourceFiber, value, expirationTime) {
-  // 获取父元素
-  let fiber = sourceFiber.return;
-  while (fiber !== null) {
-    if (fiber.tag === ClassComponent) {
-      const ctor = fiber.type;
-      const instance = fiber.stateNode;
-      if (
-        typeof ctor.getDerivedStateFromCatch === 'function' ||
-        (typeof instance.componentDidCatch === 'function' &&
-          !isAlreadyFailedLegacyErrorBoundary(instance))
-      ) {
-        const errorInfo = createCapturedValue(value, sourceFiber);
-        const update = createClassErrorUpdate(fiber, errorInfo, expirationTime);
-        enqueueUpdate(fiber, update, expirationTime);
-        scheduleWork(fiber, expirationTime);
-        return;
-      }
-    }
-    // render时进入根目录
-    if (fiber.tag === HostRoot) {
-      const errorInfo = createCapturedValue(value, sourceFiber);
-      const update = createRootErrorUpdate(fiber, errorInfo, expirationTime);
-      enqueueUpdate(fiber, update, expirationTime);
-      scheduleWork(fiber, expirationTime);
-      return;
-    }
-    fiber = fiber.return;
+function isAlreadyFailedLegacyErrorBoundary(instance) {
+  return (
+    legacyErrorBoundariesThatAlreadyFailed !== null &&
+    legacyErrorBoundariesThatAlreadyFailed.has(instance)
+  );
+}
+/**
+ * 标识错误边界, Set不重复的数组,存放的是发生错误的组件实例,
+ * @param {component instance} instance
+ */
+export function markLegacyErrorBoundaryAsFailed(instance) {
+  if (legacyErrorBoundariesThatAlreadyFailed === null) {
+    legacyErrorBoundariesThatAlreadyFailed = new Set([instance]);
+  } else {
+    legacyErrorBoundariesThatAlreadyFailed.add(instance);
   }
 }
 
@@ -403,6 +395,43 @@ export function scheduleWork(fiber, expirationTime) {
       }
     }
     node = node.return;
+  }
+}
+
+/**
+ *
+ * @param {Fiber} sourceFiber
+ * @param {error String} value
+ * @param {number} expirationTime
+ */
+function dispatch(sourceFiber, value, expirationTime) {
+  // 获取父元素
+  let fiber = sourceFiber.return;
+  while (fiber !== null) {
+    if (fiber.tag === ClassComponent) {
+      const ctor = fiber.type;
+      const instance = fiber.stateNode;
+      if (
+        typeof ctor.getDerivedStateFromCatch === 'function' ||
+        (typeof instance.componentDidCatch === 'function' &&
+          !isAlreadyFailedLegacyErrorBoundary(instance))
+      ) {
+        const errorInfo = createCapturedValue(value, sourceFiber);
+        const update = createClassErrorUpdate(fiber, errorInfo, expirationTime);
+        enqueueUpdate(fiber, update, expirationTime);
+        scheduleWork(fiber, expirationTime);
+        return;
+      }
+    }
+    // render时进入根目录
+    if (fiber.tag === HostRoot) {
+      const errorInfo = createCapturedValue(value, sourceFiber);
+      const update = createRootErrorUpdate(fiber, errorInfo, expirationTime);
+      enqueueUpdate(fiber, update, expirationTime);
+      scheduleWork(fiber, expirationTime);
+      return;
+    }
+    fiber = fiber.return;
   }
 }
 
