@@ -6,7 +6,7 @@ import {
   ContextProvider
 } from '../../shared/ReactTypeOfWork';
 import { popHostContainer, popHostContext } from './ReactFiberHostContext';
-import { markLegacyErrorBoundaryAsFailed } from './ReactFiberScheduler';
+import { markLegacyErrorBoundaryAsFailed, onUncatchError } from './ReactFiberScheduler';
 
 import {
   popContextProvider as popLegacyContextProvider,
@@ -80,5 +80,20 @@ function createClassErrorUpdate(fiber, errorInfo, expirationTime) {
   return update;
 }
 
+function createRootErrorUpdate(fiber, errorInfo, expirationTime) {
+  const update = createUpdate(expirationTime);
+  // 错误标签
+  update.tag = CaptureUpdate;
+  update.payload = {
+    element: null
+  };
+  const error = errorInfo.value;
+  update.callback = () => {
+    onUncatchError(error);
+    logError(fiber, errorInfo);
+  };
+  return update;
+}
+
 function throwException() {}
-export { unwindInterruptedWork, throwException, createClassErrorUpdate };
+export { unwindInterruptedWork, throwException, createClassErrorUpdate, createRootErrorUpdate };

@@ -11,6 +11,7 @@ import { Snapshot } from '../../shared/ReactTypeOfSideEffect';
 import getStackAddendumByWorkInProgressFiber from '../../shared/ReactFiberComponentTreeHook';
 import getComponentName from '../../shared/getComponentName';
 import logCapturedError from './ReactFiberErrorLogger';
+import { supportsMutation, resetTextContent } from './ReactFiberHostConfig';
 
 function commitBeforeMutationLifeCycles(current, finishedWork) {
   switch (finishedWork.tag) {
@@ -58,7 +59,7 @@ function logError(boundary, errorInfo) {
     errorBoundary: null,
     errorBoundaryName: null,
     errorBoundaryFound: false,
-    willRetry: false,
+    willRetry: false
   };
   if (boundary !== null && boundary.tag === ClassComponent) {
     capturedError.errorBoundary = boundary.stateNode;
@@ -75,7 +76,38 @@ function logError(boundary, errorInfo) {
     }
   }
 }
+/**
+ * 提交调度之前确保清空文本内容
+ * @param {Fiber} current
+ */
+function commitResetTextContent(current) {
+  if (!supportsMutation) {
+    return;
+  }
+  resetTextContent(current);
+}
 
-function commitResetTextContent() {}
+/**
+ * 清除ref
+ * @param {fiber} current 
+ */
+function commitDetachRef(current) {
+  const currentRef = current.ref;
+  if (currentRef !== null) {
+    if (typeof currentRef === 'function') {
+      currentRef(null);
+    } else {
+      currentRef.current = null;
+    }
+  }
+}
+/**
+ * 进行代替工作
+ * @param {fiber} finishedWork 
+ */
+// TODO: 未完成
+function commitPlacement(finishedWork) {
+  
+}
 
-export { commitBeforeMutationLifeCycles, commitResetTextContent, logError };
+export { commitBeforeMutationLifeCycles, commitResetTextContent, logError, commitDetachRef };

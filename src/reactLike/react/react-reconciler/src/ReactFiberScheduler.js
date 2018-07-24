@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-underscore-dangle */
+/* eslint-disable no-use-before-define */
 /* eslint-disable no-bitwise */
 import { AsyncMode } from './ReactTypeOfMode';
 import { computeExpirationBucket } from './ReactFiberExpirationTime';
@@ -9,17 +10,31 @@ import { now } from './ReactFiberHostConfig';
 
 import {
   unwindInterruptedWork,
-  createClassErrorUpdate
+  createClassErrorUpdate,
+  createRootErrorUpdate
 } from './ReactFiberUnwindWork';
 import {
   markPendingPriorityLevel,
   markCommittedPriorityLevels
 } from './ReactFiberPendingPriority';
 import ReactCurrentOwner from '../../react/src/ReactCurrentOwner';
-import { PerformedWork, Snapshot } from '../../shared/ReactTypeOfSideEffect';
-import { commitBeforeMutationLifeCycles } from './ReactFiberCommitWork';
+import {
+  PerformedWork,
+  Snapshot,
+  ContentReset,
+  Ref,
+  Placement,
+  Update,
+  Deletion,
+  PlacementAndUpdate
+} from '../../shared/ReactTypeOfSideEffect';
+import {
+  commitBeforeMutationLifeCycles,
+  commitResetTextContent,
+  commitDetachRef
+} from './ReactFiberCommitWork';
 import { prepareForCommit } from './ReactFiberHostConfig';
-import { enqueueUpdate } from './ReactUpdateQueue';
+import { enqueueUpdate, CaptureUpdate } from './ReactUpdateQueue';
 import createCapturedValue from './ReactCapturedValue';
 
 const timeHeuristicForUnitOfWork = 1;
@@ -42,6 +57,10 @@ let lastScheduledRoot = null;
 let firstScheduledRoot = null;
 
 let legacyErrorBoundariesThatAlreadyFailed = null;
+// 未处理错误的标识 boolen
+let hasUnhandledError = false;
+// 未处理的错误信息 mixed | string
+let unhandledError = null;
 
 export function unbatchedUpdates(fn, a) {
   if (isBatchingUpdates && !isUnbatchingUpdates) {
@@ -163,8 +182,52 @@ export function markLegacyErrorBoundaryAsFailed(instance) {
   }
 }
 
-function captureCommitPhaseError(fiber, error) {
-  return dispatch(fiber, error, Sync);
+// TODO: 未完成的函数
+function commitAllHostEffects() {
+  while (nextEffect !== null) {
+    const effectTag = nextEffect.effectTag;
+    if (effectTag && ContentReset) {
+      commitResetTextContent(nextEffect);
+    }
+
+    if (effectTag && Ref) {
+      const current = nextEffect.alternate;
+      if (current !== null) {
+        commitDetachRef(current);
+      }
+    }
+    const primaryEffectTag = effectTag & (Placement | Update | Deletion);
+    switch (primaryEffectTag) {
+      case Placement: {
+        commitPlacement(nextEffect);
+        // 清除'placement'的副作用标签,这样我们就知道它已经被插入,在任何生命周期被调用之前例如ComponentDidMount
+        nextEffect.effectTag &= ~Placement;
+        break;
+      }
+      case PlacementAndUpdate: {
+        commitPlacement(nextEffect);
+        // 清除'placement'的副作用标签,这样我们就知道它已经被插入,在任何生命周期被调用之前例如ComponentDidMount
+        nextEffect.effectTag &= ~Placement;
+
+        // 在更新
+        const current = nextEffect.alternate;
+        commitWork(current, nextEffect);
+        break;
+      }
+      case Update: {
+        const current = nextEffect.alternate;
+        commitWork(current, nextEffect);
+        break;
+      }
+      case Deletion: {
+        commitDeletion(nextEffect);
+        break;
+      }
+      default:
+        break;
+    }
+    nextEffect = nextEffect.nextEffect;
+  }
 }
 /**
  *
@@ -212,6 +275,30 @@ function commitRoot(root, finishedWork) {
 
     try {
       commitBeforeMutationLifecycles();
+    } catch (e) {
+      didError = true;
+      error = e;
+    }
+    if (didError) {
+      // 捕获提交碎片时的错误
+      captureCommitPhaseError(nextEffect, error);
+
+      if (nextEffect !== null) {
+        nextEffect = nextEffect.nextEffect;
+      }
+    }
+  }
+  // TODO: 后续的代码未完成
+  nextEffect = firstEffect;
+
+  // 提交所有在虚拟DOM树内的副作用,这个过程执行2次
+  // 第一遍执行插入,删除,更新和组件的卸载功能
+  while (nextEffect !== null) {
+    let didError = false;
+    let error;
+
+    try {
+      commitAllHostEffects();
     } catch (e) {
       didError = true;
       error = e;
@@ -353,7 +440,6 @@ export function requestWork(root, expirationTime) {
   }
 }
 
-// TODO: requestWork
 export function scheduleWork(fiber, expirationTime) {
   let node = fiber;
   while (node !== null) {
@@ -399,7 +485,7 @@ export function scheduleWork(fiber, expirationTime) {
 }
 
 /**
- *
+ * 派发错误信息,用于回滚
  * @param {Fiber} sourceFiber
  * @param {error String} value
  * @param {number} expirationTime
@@ -433,6 +519,18 @@ function dispatch(sourceFiber, value, expirationTime) {
     }
     fiber = fiber.return;
   }
+}
+
+export function onUncatchError(error) {
+  nextFlushedRoot.expirationTime = NoWork;
+  if (!hasUnhandledError) {
+    hasUnhandledError = true;
+    unhandledError = error;
+  }
+}
+
+function captureCommitPhaseError(fiber, error) {
+  return dispatch(fiber, error, Sync);
 }
 
 export function computeExpirationForFiber(currentTime, fiber) {
