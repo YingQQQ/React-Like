@@ -1,5 +1,6 @@
 /* eslint-disable no-bitwise */
 /* eslint-disable no-underscore-dangle */
+/* eslint-disable no-constant-condition */
 import {
   ClassComponent,
   HostPortal,
@@ -7,7 +8,7 @@ import {
   HostText,
   HostRoot
 } from '../../shared/ReactTypeOfWork';
-import { Snapshot } from '../../shared/ReactTypeOfSideEffect';
+import { Snapshot, ContentReset } from '../../shared/ReactTypeOfSideEffect';
 import getStackAddendumByWorkInProgressFiber from '../../shared/ReactFiberComponentTreeHook';
 import getComponentName from '../../shared/getComponentName';
 import logCapturedError from './ReactFiberErrorLogger';
@@ -107,7 +108,45 @@ function commitDetachRef(current) {
  */
 // TODO: 未完成
 function commitPlacement(finishedWork) {
-  
+  if (!supportsMutation) {
+    return;
+  }
+  const parentFiber = getHostParentFiber(finishedWork);
+  let parent;
+  let isContainer;
+  switch (parentFiber.tag) {
+    case HostComponent:
+      parent = parentFiber.stateNode;
+      isContainer = false;
+      break;
+    case HostRoot:
+      parent = parentFiber.stateNode.containerInfo;
+      isContainer = true;
+      break;
+    case HostPortal:
+      parent = parentFiber.stateNode.containerInfo;
+      isContainer = true;
+      break;
+    default:
+      break;
+  }
+  if (parentFiber.effectTag & ContentReset) {
+    resetTextContent(parent);
+    parentFiber.effectTag &= ~ContentReset;
+  }
+  const before = getHostSibling(finishedWork);
+  let node = finishedWork;
+  while (true) {
+    if (node.tag === HostComponent || node.tag === HostText) {
+      if (before) {
+        if (isContainer) {
+          insertIn
+        } else {
+          
+        }
+      }
+    }
+  }
 }
 
 export { commitBeforeMutationLifeCycles, commitResetTextContent, logError, commitDetachRef };
