@@ -1,2 +1,2 @@
 # React-Like
-a mini react lib
+Learning, how to create a mini react lib
