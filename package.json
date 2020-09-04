@@ -47,7 +47,7 @@
     "koa-webpack": "^4.0.0",
     "koa2-history-api-fallback": "^0.0.5",
     "mini-css-extract-plugin": "^0.4.0",
-    "node-sass": "^4.9.0",
+    "node-sass": "^4.13.1",
     "optimize-css-assets-webpack-plugin": "^4.0.1",
     "piping": "^1.0.0-rc.4",
     "postcss-cssnext": "^3.0.2",
